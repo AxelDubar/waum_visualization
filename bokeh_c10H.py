@@ -33,9 +33,10 @@ from PIL import Image
 from io import BytesIO
 import numpy as np
 import pandas as pd
-import torchvision
+
+# import torchvision
 import os
-from peerannot.models import NaiveSoft
+from NaiveSoft import NaiveSoft
 from scipy.special import entr
 import json
 from scipy import interpolate
@@ -160,14 +161,29 @@ INIT_SAMPLE = 982
 
 # %%
 dirfile = os.getcwd()
-trainset = torchvision.datasets.CIFAR10(
-    root="./data",
-    train=False,
-    download=True,
-    transform=torchvision.transforms.Compose(
-        [torchvision.transforms.Resize(32), torchvision.transforms.ToTensor()]
-    ),
-)
+# trainset = torchvision.datasets.CIFAR10(
+#     root="./data",
+#     train=False,
+#     download=True,
+#     transform=torchvision.transforms.Compose(
+#         [torchvision.transforms.Resize(32), torchvision.transforms.ToTensor()]
+#     ),
+# )
+
+with open("./data/labels.json", "r") as f:
+    labelsJson = json.load(f)
+trainset = []
+images = []
+for imagesIdx in range(0, len(labelsJson)):
+    image = Image.open("./data/images/" + str(imagesIdx) + ".png").resize((32, 32))
+    image = np.asarray(image)
+    images.extend([image])
+    image = image / 256.0
+    image = np.append(
+        np.append(image[:, :, 0::3], image[:, :, 1::3]), image[:, :, 2::3]
+    ).reshape(3, 32, 32)
+    trainset.append((image, labelsJson[str(imagesIdx)]))
+
 
 batch_size = 64
 
@@ -183,7 +199,10 @@ full_logits = pd.read_parquet(
 )
 aum_df = aum_from_logits(full_logits)
 # %%
-dict_classes = trainset.class_to_idx
+with open("./data/label_dict.json", "r") as f:
+    class_to_idx = json.load(f)
+dict_classes = class_to_idx
+
 classes = list(dict_classes.keys())
 inv_classes = dict(zip(dict_classes.values(), dict_classes.keys()))
 # %%
@@ -203,17 +222,12 @@ entropy = entropy[idx_correct[:n_sub]]
 mean_cifar = np.array([0.0, 0.0, 0.0])
 std_cifar = np.array([1.0, 1.0, 1.0])
 
-inv_normalize = torchvision.transforms.Normalize(
-    mean=mean_cifar / std_cifar, std=1.0 / std_cifar
-)
-
-
 labels = []
-images = []
+# images = []
 for idx, data in enumerate(trainset):
     labels.extend([inv_classes[data[1]]])
-    image = 255 * (np.transpose(inv_normalize(data[0]).numpy(), (1, 2, 0)))
-    images.extend([image.astype("uint8")])
+    # image = 255 * (np.transpose(inv_normalize(data[0]).numpy(), (1, 2, 0)))
+    # images.extend([image.astype("uint8")])
 
 # labels, inputs = np.asarray(y_labels), np.asarray(inputs_)
 
