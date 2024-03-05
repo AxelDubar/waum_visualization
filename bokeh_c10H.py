@@ -41,6 +41,10 @@ from scipy.special import entr
 import json
 from scipy import interpolate
 
+from flask import Flask
+import os
+
+app = Flask(__name__)
 # %%
 
 
